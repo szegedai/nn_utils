@@ -5,7 +5,7 @@ import json
 import os
 import random
 from torch.utils.data import DataLoader
-from activations import ActivationExtractor
+from nn_utils.activations import ActivationExtractor
 from autoattack import AutoAttack
 from torch.nn.functional import cross_entropy, log_softmax, one_hot
 

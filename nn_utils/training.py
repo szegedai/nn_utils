@@ -5,7 +5,7 @@ import paramiko
 import wandb
 from time import time
 from torch.utils.data import DataLoader
-from misc import evaluate, WeightRegularization, RollingStatistics, LogManager, top1_accuracy
+from nn_utils.misc import evaluate, RollingStatistics, LogManager, top1_accuracy
 from models import save_checkpoint
 
 

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import models.resnet
+from nn_utils.models.resnet import BasicBlock, FixupBasicBlock
 
 '''def split_dict(d: dict):
     return d.keys(), torch.stack(list(d.values()))
@@ -16,7 +16,7 @@ def get_relevant_modules(model: nn.Module):
     for m_id, m in model.named_modules():
         if isinstance(m, nn.ReLU) and m.inplace and prev_id is not None:
             module_ids.append(prev_id)
-        if isinstance(m, models.resnet.BasicBlock) or isinstance(m, models.resnet.FixupBasicBlock):
+        if isinstance(m, BasicBlock) or isinstance(m, FixupBasicBlock):
             module_ids.append(m_id)
         prev_id = m_id
     return module_ids
