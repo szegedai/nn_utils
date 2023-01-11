@@ -7,7 +7,7 @@ import random
 from torch.utils.data import DataLoader
 from nn_utils.activations import ActivationExtractor
 from autoattack import AutoAttack
-from torch.nn.functional import cross_entropy, log_softmax, one_hot
+import torch.nn.functional as F
 
 
 def set_determinism(determinism=True, seed=None):
@@ -120,10 +120,10 @@ class CrossEntropyLoss(torch.nn.Module):
         self._cross_entropy_kwargs = kwargs
 
     def _forward_impl_1(self, y_hat, y):
-        return self.reduce(-torch.sum(y * log_softmax(y_hat), dim=1))
+        return self.reduce(-torch.sum(y * F.log_softmax(y_hat), dim=1))
 
     def _forward_impl_2(self, y_hat, y):
-        return cross_entropy(y_hat, y, **self._cross_entropy_kwargs)
+        return F.cross_entropy(y_hat, y, **self._cross_entropy_kwargs)
 
 
 class OneHotEncoder:
@@ -132,7 +132,7 @@ class OneHotEncoder:
         self.dtype = dtype
 
     def __call__(self, x):
-        return one_hot(torch.tensor(x, dtype=torch.int64), self.num_classes).to(dtype=self.dtype)
+        return F.one_hot(torch.tensor(x, dtype=torch.int64), self.num_classes).to(dtype=self.dtype)
 
 
 class UniformRandomDataset(torch.utils.data.Dataset):
@@ -371,7 +371,7 @@ def create_data_loaders(datasets, batch_size, shuffle=True, num_workers=4, pin_m
     return ds_loaders
 
 
-def load_mnist(train_transforms=None, test_transforms=None, target_transform=None):
+def load_mnist(train_transforms=None, test_transforms=None, target_transform=None, path='./datasets'):
     if train_transforms is None:
         train_transforms = []
     train_transforms = torchvision.transforms.Compose([
@@ -382,17 +382,17 @@ def load_mnist(train_transforms=None, test_transforms=None, target_transform=Non
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(), *test_transforms
     ])
-    train_dataset = torchvision.datasets.MNIST('./datasets',
+    train_dataset = torchvision.datasets.MNIST(path,
                                                train=True,
                                                transform=train_transforms,
                                                target_transform=target_transform,
                                                download=True)
-    test_dataset = torchvision.datasets.MNIST('./datasets', train=False, transform=test_transforms, download=True)
+    test_dataset = torchvision.datasets.MNIST(path, train=False, transform=test_transforms, download=True)
 
     return train_dataset, test_dataset
 
 
-def load_fashion_mnist(train_transforms=None, test_transforms=None, target_transform=None):
+def load_fashion_mnist(train_transforms=None, test_transforms=None, target_transform=None, path='./datasets'):
     if train_transforms is None:
         train_transforms = []
     train_transforms = torchvision.transforms.Compose([
@@ -403,12 +403,12 @@ def load_fashion_mnist(train_transforms=None, test_transforms=None, target_trans
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(), *test_transforms
     ])
-    train_dataset = torchvision.datasets.FashionMNIST('./datasets',
+    train_dataset = torchvision.datasets.FashionMNIST(path,
                                                       train=True,
                                                       transform=train_transforms,
                                                       target_transform=target_transform,
                                                       download=True)
-    test_dataset = torchvision.datasets.FashionMNIST('./datasets',
+    test_dataset = torchvision.datasets.FashionMNIST(path,
                                                      train=False,
                                                      transform=test_transforms,
                                                      target_transform=target_transform,
@@ -417,7 +417,7 @@ def load_fashion_mnist(train_transforms=None, test_transforms=None, target_trans
     return train_dataset, test_dataset
 
 
-def load_cifar10(train_transforms=None, test_transforms=None, target_transform=None):
+def load_cifar10(train_transforms=None, test_transforms=None, target_transform=None, path='./datasets'):
     if train_transforms is None:
         train_transforms = []
     train_transforms = torchvision.transforms.Compose([
@@ -428,12 +428,12 @@ def load_cifar10(train_transforms=None, test_transforms=None, target_transform=N
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(), *test_transforms
     ])
-    train_dataset = torchvision.datasets.CIFAR10('./datasets',
+    train_dataset = torchvision.datasets.CIFAR10(path,
                                                  train=True,
                                                  transform=train_transforms,
                                                  target_transform=target_transform,
                                                  download=True)
-    test_dataset = torchvision.datasets.CIFAR10('./datasets',
+    test_dataset = torchvision.datasets.CIFAR10(path,
                                                 train=False,
                                                 transform=test_transforms,
                                                 target_transform=target_transform,
@@ -442,7 +442,7 @@ def load_cifar10(train_transforms=None, test_transforms=None, target_transform=N
     return train_dataset, test_dataset
 
 
-def load_svhn(train_transforms=None, test_transforms=None, target_transform=None):
+def load_svhn(train_transforms=None, test_transforms=None, target_transform=None, path='./datasets'):
     if train_transforms is None:
         train_transforms = []
     train_transforms = torchvision.transforms.Compose([
@@ -453,11 +453,11 @@ def load_svhn(train_transforms=None, test_transforms=None, target_transform=None
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(), *test_transforms
     ])
-    train_dataset = torchvision.datasets.SVHN('./datasets',
+    train_dataset = torchvision.datasets.SVHN(path,
                                               split='train',
                                               transform=train_transforms,
                                               download=True)
-    test_dataset = torchvision.datasets.SVHN('./datasets',
+    test_dataset = torchvision.datasets.SVHN(path,
                                              split='test',
                                              transform=test_transforms,
                                              target_transform=target_transform,
@@ -466,7 +466,7 @@ def load_svhn(train_transforms=None, test_transforms=None, target_transform=None
     return train_dataset, test_dataset
 
 
-def load_imagenet(train_transforms=None, test_transforms=None, target_transform=None):
+def load_imagenet(train_transforms=None, test_transforms=None, target_transform=None, path='./datasets/imagenet'):
     if train_transforms is None:
         train_transforms = []
     train_transforms = torchvision.transforms.Compose([
@@ -477,10 +477,10 @@ def load_imagenet(train_transforms=None, test_transforms=None, target_transform=
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(), *test_transforms
     ])
-    train_dataset = torchvision.datasets.ImageFolder('./datasets/imagenet/training_data',
+    train_dataset = torchvision.datasets.ImageFolder(path + '/training_data',
                                                      transform=train_transforms,
                                                      target_transform=target_transform)
-    test_dataset = torchvision.datasets.ImageFolder('./datasets/imagenet/validation_data',
+    test_dataset = torchvision.datasets.ImageFolder(path + '/validation_data',
                                                     transform=test_transforms,
                                                     target_transform=target_transform)
 

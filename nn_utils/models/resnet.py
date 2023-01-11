@@ -5,12 +5,12 @@ import torch.nn.functional as F
 from torchvision.transforms.functional import normalize as standardize
 
 
-def conv3x3(in_planes, out_planes, stride=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+def conv3x3(in_planes, out_planes, stride=1, conv=nn.Conv2d):
+    return conv(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
 
-def conv1x1(in_planes, out_planes, stride=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
+def conv1x1(in_planes, out_planes, stride=1, conv=nn.Conv2d):
+    return conv(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
 
 
 class DownSampleSkip(nn.Module):
@@ -73,6 +73,29 @@ def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1, skip_t
         blocks.append(block(out_planes, out_planes))
 
     return nn.Sequential(*blocks)
+
+
+class SWSConv2d(nn.Conv2d):
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 stride=1, padding=0, dilation=1, groups=1, bias=True, gain=True, eps=1e-4):
+        nn.Conv2d.__init__(self, in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+        if gain:
+            self.gain = nn.Parameter(torch.ones(self.out_channels, 1, 1, 1))
+        else:
+            self.gain = None
+        self.eps = eps
+
+    def get_weight(self):
+        fan_in = np.prod(self.weight.shape[1:])
+        mean = torch.mean(self.weight, dim=[1, 2, 3], keepdims=True)
+        var = torch.var(self.weight, dim=[1, 2, 3], keepdims=True)
+        weight = (self.weight - mean) / (var * fan_in + self.eps) ** 0.5
+        if self.gain is not None:
+            weight = weight * self.gain
+        return weight
+
+    def forward(self, x):
+        return F.conv2d(x, self.get_weight(), self.bias, self.stride, self.padding, self.dilation, self.groups)
 
 
 class _StandardHead(nn.Module):
@@ -185,6 +208,31 @@ class FixupBasicBlock(nn.Module):
         return out
 
 
+class NFBasicBlock(nn.Module):
+    def __init__(self, in_planes, out_planes, stride=1, downsample=None):
+        super(NFBasicBlock, self).__init__()
+        self.conv1 = conv3x3(in_planes, out_planes, stride, SWSConv2d)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(out_planes, out_planes, 1, SWSConv2d)
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, width_factor=1, skip_type='B',
                  means=(0.0, 0.0, 0.0), stds=(1.0, 1.0, 1.0),
@@ -253,9 +301,17 @@ def resnet110f(num_classes, **kwargs):
     return ResNet(FixupBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', fixup=True, **kwargs)
 
 
+def resnet110nf(num_classes, **kwargs):
+    return ResNet(NFBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
+
+
 def wide_resnet28x10(num_classes, **kwargs):
     return ResNet(BasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
 
 
 def wide_resnet28fx10(num_classes, **kwargs):
     return ResNet(FixupBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', fixup=True, **kwargs)
+
+
+def wide_resnet28nfx10(num_classes, **kwargs):
+    return ResNet(NFBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)

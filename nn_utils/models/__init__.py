@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 import os
+from .resnet import *
 
+__all__ = ['wide_resnet28x10', 'wide_resnet28fx10', 'wide_resnet28nfx10',
+           'resnet110', 'resnet110f', 'resnet110nf', 'ResNet', 'BasicBlock', 'FixupBasicBlock', 'NFBasicBlock']
 
 def save_checkpoint(model, optimizer, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
