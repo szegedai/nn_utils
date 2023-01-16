@@ -321,6 +321,37 @@ class WeightRegularization:
         return sum(self.norm(p).sum() for p in self.model.parameters()) * self.lam
 
 
+class EWC:
+    def __init__(self, model, dataloader, lam=1.0):
+        self.model = model
+        self.dataloader = dataloader
+        self.lam = lam
+        self._original_params = {n: p.detach() for n, p in self.model.named_parameters() if p.requires_grad}
+        self._precisions = {n: torch.zeros_like(p) for n, p in self._original_params.items()}
+
+        model_mode = self.model.training
+        model_device = next(model.parameters()).device
+        self.model.eval()
+        for x, _ in dataloader:
+            x = x.to(model_device)
+            self.model.zero_grad()
+            output = self.model(x)
+            label = torch.argmax(output, 1)
+            loss = F.cross_entropy(output, label)
+            loss.backward()
+
+            for n, p in self.model.named_parameters():
+                self._precisions[n] += (p.grad.detach() ** 2).sum(0) / len(dataloader.dataset)
+
+        self.model.train(model_mode)
+
+    def __call__(self):
+        loss = 0
+        for n, p in self.model.named_parameters():
+            loss += (self._precisions[n] * (p - self._original_params[n]) ** 2).sum()
+        return self.lam * loss
+
+
 class RollingStatistics:
     def __init__(self, shape=(1,), axis=-1):
         self.axis = axis
