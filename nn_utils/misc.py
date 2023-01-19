@@ -326,7 +326,7 @@ class EWC:
         self.model = model
         self.dataloader = dataloader
         self.lam = lam
-        self._original_params = {n: p.detach() for n, p in self.model.named_parameters() if p.requires_grad}
+        self._original_params = {n: p.detach().clone() for n, p in self.model.named_parameters() if p.requires_grad}
         self._precisions = {n: torch.zeros_like(p) for n, p in self._original_params.items()}
 
         model_mode = self.model.training
