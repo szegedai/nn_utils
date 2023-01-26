@@ -322,18 +322,23 @@ class WeightRegularization:
 
 
 class EWC:
-    def __init__(self, model, dataloader, lam=1.0):
+    def __init__(self, model, dataloader, lam=1.0, attack=None):
         self.model = model
         self.dataloader = dataloader
         self.lam = lam
+        self.attack = attack
         self._original_params = {n: p.detach().clone() for n, p in self.model.named_parameters() if p.requires_grad}
         self._precisions = {n: torch.zeros_like(p) for n, p in self._original_params.items()}
 
         model_mode = self.model.training
         model_device = next(model.parameters()).device
         self.model.eval()
-        for x, _ in dataloader:
-            x = x.to(model_device)
+        for x, y in dataloader:
+            if self.attack is not None:
+                x, y = x.to(model_device), y.to(model_device)
+                x = self.attack.perturb(x, y)
+            else:
+                x = x.to(model_device)
             self.model.zero_grad()
             output = self.model(x)
             label = torch.argmax(output, 1)
