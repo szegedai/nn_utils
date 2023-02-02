@@ -5,12 +5,12 @@ import torch.nn.functional as F
 from torchvision.transforms.functional import normalize as standardize
 
 
-def conv3x3(in_planes, out_planes, stride=1, conv=nn.Conv2d):
-    return conv(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+def conv3x3(in_planes, out_planes, stride=1, conv=nn.Conv2d, bias=False):
+    return conv(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=bias)
 
 
-def conv1x1(in_planes, out_planes, stride=1, conv=nn.Conv2d):
-    return conv(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
+def conv1x1(in_planes, out_planes, stride=1, conv=nn.Conv2d, bias=False):
+    return conv(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=bias)
 
 
 class DownSampleSkip(nn.Module):
@@ -56,16 +56,16 @@ class Conv2dSkip(nn.Module):
         return x
 
 
-def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1, skip_type='B', fixup=False):
+def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1, skip_type='B'):
     assert stride == 1 or stride == 2, 'Unsupported stride. Stride must be 1 or 2.'
     assert skip_type == 'A' or skip_type == 'B', 'Skip connection type only supports "A"(down sample + pad) and "B"(convolution).'
 
     downsample = None
     if stride != 1 or in_planes != out_planes:
         if skip_type == 'A':
-            downsample = DownSampleSkip(in_planes, out_planes, stride, not fixup)
+            downsample = DownSampleSkip(in_planes, out_planes, stride, block is BasicBlock)
         else:  # skip_type == 'B'
-            downsample = Conv2dSkip(in_planes, out_planes, stride, not fixup)
+            downsample = Conv2dSkip(in_planes, out_planes, stride, block is BasicBlock)
 
     blocks = []
     blocks.append(block(in_planes, out_planes, stride, downsample))
@@ -122,6 +122,18 @@ class _FixupHead(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         x = self.activation_fn(x + self.bias)
+        return x
+
+
+class _NFHead(nn.Module):
+    def __init__(self, in_planes, out_planes, activation_fn):
+        super(_NFHead, self).__init__()
+        self.conv = conv3x3(in_planes, out_planes, bias=True)
+        self.activation_fn = activation_fn
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.activation_fn(x)
         return x
 
 
@@ -211,9 +223,9 @@ class FixupBasicBlock(nn.Module):
 class NFBasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, downsample=None):
         super(NFBasicBlock, self).__init__()
-        self.conv1 = conv3x3(in_planes, out_planes, stride, SWSConv2d)
+        self.conv1 = conv3x3(in_planes, out_planes, stride, SWSConv2d, bias=True)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(out_planes, out_planes, 1, SWSConv2d)
+        self.conv2 = conv3x3(out_planes, out_planes, 1, SWSConv2d, bias=True)
         self.downsample = downsample
 
     def forward(self, x):
@@ -235,25 +247,28 @@ class NFBasicBlock(nn.Module):
 
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, width_factor=1, skip_type='B',
-                 means=(0.0, 0.0, 0.0), stds=(1.0, 1.0, 1.0),
-                 fixup=False, zero_init_residual=False):
+                 means=(0.0, 0.0, 0.0), stds=(1.0, 1.0, 1.0), zero_init_residual=False):
         super(ResNet, self).__init__()
         num_channels = [16, 16 * width_factor, 32 * width_factor, 64 * width_factor]
         relu = nn.ReLU(inplace=True)
-        if fixup:
+        if block is FixupBasicBlock:
             self.head = _FixupHead(3, num_channels[0], relu)
+        elif block is NFBasicBlock:
+            self.head = _NFHead(3, num_channels[0], relu)
         else:
             self.head = _StandardHead(3, num_channels[0], relu)
-        self.group1 = _make_block_group(block, num_blocks[0], num_channels[0], num_channels[1], 1, skip_type, fixup)
-        self.group2 = _make_block_group(block, num_blocks[1], num_channels[1], num_channels[2], 2, skip_type, fixup)
-        self.group3 = _make_block_group(block, num_blocks[2], num_channels[2], num_channels[3], 2, skip_type, fixup)
+        self.group1 = _make_block_group(block, num_blocks[0], num_channels[0], num_channels[1], 1, skip_type)
+        self.group2 = _make_block_group(block, num_blocks[1], num_channels[1], num_channels[2], 2, skip_type)
+        self.group3 = _make_block_group(block, num_blocks[2], num_channels[2], num_channels[3], 2, skip_type)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        if fixup:
+        if block is FixupBasicBlock:
             self.tail = _FixupTail(num_channels[3], num_classes)
+        elif block is NFBasicBlock:
+            self.tail = _StandardTail(num_channels[3], num_classes)
         else:
             self.tail = _StandardTail(num_channels[3], num_classes)
 
-        if fixup:
+        if block is FixupBasicBlock:
             for m in self.modules():
                 if isinstance(m, FixupBasicBlock):
                     nn.init.normal_(m.conv1.weight, mean=0, std=np.sqrt(
@@ -298,7 +313,7 @@ def resnet110(num_classes, **kwargs):
 
 
 def resnet110f(num_classes, **kwargs):
-    return ResNet(FixupBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', fixup=True, **kwargs)
+    return ResNet(FixupBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
 
 
 def resnet110nf(num_classes, **kwargs):
@@ -310,7 +325,7 @@ def wide_resnet28x10(num_classes, **kwargs):
 
 
 def wide_resnet28fx10(num_classes, **kwargs):
-    return ResNet(FixupBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', fixup=True, **kwargs)
+    return ResNet(FixupBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
 
 
 def wide_resnet28nfx10(num_classes, **kwargs):
