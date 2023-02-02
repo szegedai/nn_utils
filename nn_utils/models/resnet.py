@@ -37,9 +37,9 @@ class DownSampleSkip(nn.Module):
 
 
 class Conv2dSkip(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, use_batchnorm):
+    def __init__(self, in_planes, out_planes, stride, use_batchnorm, bias):
         super(Conv2dSkip, self).__init__()
-        self.conv = conv1x1(in_planes, out_planes, stride)
+        self.conv = conv1x1(in_planes, out_planes, stride, bias=bias)
         if use_batchnorm:
             self.bn = nn.BatchNorm2d(out_planes)
             self.forward = self._forward_impl1
@@ -65,7 +65,7 @@ def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1, skip_t
         if skip_type == 'A':
             downsample = DownSampleSkip(in_planes, out_planes, stride, block is BasicBlock)
         else:  # skip_type == 'B'
-            downsample = Conv2dSkip(in_planes, out_planes, stride, block is BasicBlock)
+            downsample = Conv2dSkip(in_planes, out_planes, stride, block is BasicBlock, block is NFBasicBlock)
 
     blocks = []
     blocks.append(block(in_planes, out_planes, stride, downsample))
