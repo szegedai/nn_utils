@@ -56,7 +56,8 @@ class Conv2dSkip(nn.Module):
         return x
 
 
-def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1, skip_type='B'):
+def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1,
+                      activation_fn=nn.ReLU(inplace=True), skip_type='B'):
     assert stride == 1 or stride == 2, 'Unsupported stride. Stride must be 1 or 2.'
     assert skip_type == 'A' or skip_type == 'B', 'Skip connection type only supports "A"(down sample + pad) and "B"(convolution).'
 
@@ -68,9 +69,9 @@ def _make_block_group(block, num_blocks, in_planes, out_planes, stride=1, skip_t
             downsample = Conv2dSkip(in_planes, out_planes, stride, block is BasicBlock, block is NFBasicBlock)
 
     blocks = []
-    blocks.append(block(in_planes, out_planes, stride, downsample))
+    blocks.append(block(in_planes, out_planes, stride, activation_fn, downsample))
     for _ in range(1, num_blocks):
-        blocks.append(block(out_planes, out_planes))
+        blocks.append(block(out_planes, out_planes, activation_fn=activation_fn))
 
     return nn.Sequential(*blocks)
 
@@ -161,11 +162,11 @@ class _FixupTail(nn.Module):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride=1, downsample=None):
+    def __init__(self, in_planes, out_planes, stride=1, activation_fn=nn.ReLU(inplace=True), downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(in_planes, out_planes, stride)
         self.bn1 = nn.BatchNorm2d(out_planes)
-        self.relu = nn.ReLU(inplace=True)
+        self.activation_fn = activation_fn
         self.conv2 = conv3x3(out_planes, out_planes)
         self.bn2 = nn.BatchNorm2d(out_planes)
         self.downsample = downsample
@@ -175,7 +176,7 @@ class BasicBlock(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.activation_fn(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -184,18 +185,18 @@ class BasicBlock(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = self.relu(out)
+        out = self.activation_fn(out)
 
         return out
 
 
 class FixupBasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride=1, downsample=None):
+    def __init__(self, in_planes, out_planes, stride=1, activation_fn=nn.ReLU(inplace=True), downsample=None):
         super(FixupBasicBlock, self).__init__()
         self.bias1a = nn.Parameter(torch.zeros(1))
         self.conv1 = conv3x3(in_planes, out_planes, stride)
         self.bias1b = nn.Parameter(torch.zeros(1))
-        self.relu = nn.ReLU(inplace=True)
+        self.activation_fn = activation_fn
         self.bias2a = nn.Parameter(torch.zeros(1))
         self.conv2 = conv3x3(out_planes, out_planes)
         self.scale = nn.Parameter(torch.ones(1))
@@ -206,7 +207,7 @@ class FixupBasicBlock(nn.Module):
         identity = x
 
         out = self.conv1(x + self.bias1a)
-        out = self.relu(out + self.bias1b)
+        out = self.activation_fn(out + self.bias1b)
 
         out = self.conv2(out + self.bias2a)
         out = out * self.scale + self.bias2b
@@ -215,16 +216,16 @@ class FixupBasicBlock(nn.Module):
             identity = self.downsample(x + self.bias1a)
 
         out += identity
-        out = self.relu(out)
+        out = self.activation_fn(out)
 
         return out
 
 
 class NFBasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride=1, downsample=None):
+    def __init__(self, in_planes, out_planes, stride=1, activation_fn=nn.ReLU(inplace=True), downsample=None):
         super(NFBasicBlock, self).__init__()
         self.conv1 = conv3x3(in_planes, out_planes, stride, SWSConv2d, bias=True)
-        self.relu = nn.ReLU(inplace=True)
+        self.activation_fn = activation_fn
         self.conv2 = conv3x3(out_planes, out_planes, 1, SWSConv2d, bias=True)
         self.downsample = downsample
 
@@ -232,7 +233,7 @@ class NFBasicBlock(nn.Module):
         identity = x
 
         out = self.conv1(x)
-        out = self.relu(out)
+        out = self.activation_fn(out)
 
         out = self.conv2(out)
 
@@ -240,26 +241,29 @@ class NFBasicBlock(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = self.relu(out)
+        out = self.activation_fn(out)
 
         return out
 
 
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, width_factor=1, skip_type='B',
+                 activation_fn=nn.ReLU(inplace=True),
                  means=(0.0, 0.0, 0.0), stds=(1.0, 1.0, 1.0), zero_init_residual=False):
         super(ResNet, self).__init__()
         num_channels = [16, 16 * width_factor, 32 * width_factor, 64 * width_factor]
-        relu = nn.ReLU(inplace=True)
         if block is FixupBasicBlock:
-            self.head = _FixupHead(3, num_channels[0], relu)
+            self.head = _FixupHead(3, num_channels[0], activation_fn)
         elif block is NFBasicBlock:
-            self.head = _NFHead(3, num_channels[0], relu)
+            self.head = _NFHead(3, num_channels[0], activation_fn)
         else:
-            self.head = _StandardHead(3, num_channels[0], relu)
-        self.group1 = _make_block_group(block, num_blocks[0], num_channels[0], num_channels[1], 1, skip_type)
-        self.group2 = _make_block_group(block, num_blocks[1], num_channels[1], num_channels[2], 2, skip_type)
-        self.group3 = _make_block_group(block, num_blocks[2], num_channels[2], num_channels[3], 2, skip_type)
+            self.head = _StandardHead(3, num_channels[0], activation_fn)
+        self.group1 = _make_block_group(block, num_blocks[0], num_channels[0], num_channels[1], 1,
+                                        activation_fn, skip_type)
+        self.group2 = _make_block_group(block, num_blocks[1], num_channels[1], num_channels[2], 2,
+                                        activation_fn, skip_type)
+        self.group3 = _make_block_group(block, num_blocks[2], num_channels[2], num_channels[3], 2,
+                                        activation_fn, skip_type)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         if block is FixupBasicBlock:
             self.tail = _FixupTail(num_channels[3], num_classes)

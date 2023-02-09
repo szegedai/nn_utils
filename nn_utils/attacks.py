@@ -11,7 +11,7 @@ def project(x, original_x, epsilon):
 
 
 class LinfProjectedGradientDescendAttack:
-    def __init__(self, model, loss_fn, eps, step_size, steps, random_start=True, reg=lambda: 0.0, bounds=(0.0, 1.0), device=None):
+    def __init__(self, model, loss_fn, eps, step_size, steps, random_start=True, reg=lambda: 0.0, bounds=(0.0, 1.0)):
         self.model = model
         self.loss_fn = loss_fn
 
@@ -24,12 +24,13 @@ class LinfProjectedGradientDescendAttack:
 
         self.reg = reg
 
-        self.device = device if device else torch.device('cpu')
+        self.device = next(model.parameters()).device
+        self.dtype = next(model.parameters()).dtype
 
     def perturb(self, original_x, y):
         if self.random_start:
             rand_perturb = torch.FloatTensor(original_x.shape).uniform_(-self.eps, self.eps)
-            rand_perturb = rand_perturb.to(self.device)
+            rand_perturb = rand_perturb.to(dtype=self.dtype, device=self.device)
             x = original_x.detach() + rand_perturb
             x.clamp_(self.bounds[0], self.bounds[1])
         else:

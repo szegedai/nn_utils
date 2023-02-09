@@ -243,6 +243,7 @@ def train_classifier(model, loss_fn, opt, train_loader, test_loader=None, test_a
     assert initial_epoch >= 1
     initial_epoch -= 1
     device = next(model.parameters()).device
+    dtype = next(model.parameters()).dtype
     callbacks = callbacks if callbacks is not None else []
     regs = regs if regs is not None else []
     do_test = test_loader is not None
@@ -264,7 +265,7 @@ def train_classifier(model, loss_fn, opt, train_loader, test_loader=None, test_a
         running_acc.reset()
         iter_callbacks('on_epoch_begin', locals())
         for batch_idx, (x, y) in enumerate(train_loader):
-            x, y = x.to(device), y.to(device)
+            x, y = x.to(dtype=dtype, device=device), y.to(device)
 
             iter_callbacks('on_batch_begin', locals())
 

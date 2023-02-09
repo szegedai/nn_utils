@@ -58,6 +58,7 @@ def top1_accuracy(one_hot=False):
 
 def evaluate(model, ds_loader, loss_fn, acc_fn=top1_accuracy(False), attack=None, batch_num_limit=float('inf')):
     model_device = next(model.parameters()).device
+    model_dtype = next(model.parameters()).dtype
     loss_sum = 0
     acc_sum = 0
     num_samples = 0
@@ -66,7 +67,7 @@ def evaluate(model, ds_loader, loss_fn, acc_fn=top1_accuracy(False), attack=None
             break
         current_batch_size = x.shape[0]
         num_samples += current_batch_size
-        x, y = x.to(model_device), y.to(model_device)
+        x, y = x.to(dtype=model_dtype, device=model_device), y.to(model_device)
 
         if attack is not None:
             x = attack.perturb(x, y)
@@ -84,6 +85,7 @@ def evaluate(model, ds_loader, loss_fn, acc_fn=top1_accuracy(False), attack=None
 def evaluate_acc(model, ds_loader, acc_fn=top1_accuracy(False), attack=None, batch_num_limit=float('inf')):
     autoattack = isinstance(attack, AutoAttack)
     model_device = next(model.parameters()).device
+    model_dtype = next(model.parameters()).dtype
     acc_sum = 0
     num_samples = 0
     for i, (x, y) in enumerate(ds_loader):
@@ -91,7 +93,7 @@ def evaluate_acc(model, ds_loader, acc_fn=top1_accuracy(False), attack=None, bat
             break
         current_batch_size = x.shape[0]
         num_samples += current_batch_size
-        x, y = x.to(model_device), y.to(model_device)
+        x, y = x.to(dtyep=model_dtype, device=model_device), y.to(model_device)
 
         if attack is not None:
             if autoattack:
