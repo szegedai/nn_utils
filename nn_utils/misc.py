@@ -93,7 +93,7 @@ def evaluate_acc(model, ds_loader, acc_fn=top1_accuracy(False), attack=None, bat
             break
         current_batch_size = x.shape[0]
         num_samples += current_batch_size
-        x, y = x.to(dtyep=model_dtype, device=model_device), y.to(model_device)
+        x, y = x.to(dtype=model_dtype, device=model_device), y.to(model_device)
 
         if attack is not None:
             if autoattack:
