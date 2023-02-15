@@ -1,8 +1,8 @@
+import torch
 from torch import nn
 import torch.nn.functional as F
 from torchvision.transforms.functional import normalize as standardize
 import numpy as np
-from nn_utils.training import *
 
 
 class SWSConv2d(nn.Conv2d):
