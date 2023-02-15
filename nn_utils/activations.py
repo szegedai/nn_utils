@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from nn_utils.models.resnet import BasicBlock, FixupBasicBlock
+from nn_utils.models.resnet_v1 import BasicBlock, FixupBasicBlock
 
 '''def split_dict(d: dict):
     return d.keys(), torch.stack(list(d.values()))

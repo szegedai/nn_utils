@@ -246,11 +246,11 @@ class NFBasicBlock(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
+class ResNetV1(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, width_factor=1, skip_type='B',
                  activation_fn=nn.ReLU(inplace=True),
                  means=(0.0, 0.0, 0.0), stds=(1.0, 1.0, 1.0), zero_init_residual=False):
-        super(ResNet, self).__init__()
+        super(ResNetV1, self).__init__()
         num_channels = [16, 16 * width_factor, 32 * width_factor, 64 * width_factor]
         if block is FixupBasicBlock:
             self.head = _FixupHead(3, num_channels[0], activation_fn)
@@ -312,25 +312,25 @@ class ResNet(nn.Module):
         return x
 
 
-def resnet110(num_classes, **kwargs):
-    return ResNet(BasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
+def resnet110v1(num_classes, **kwargs):
+    return ResNetV1(BasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
 
 
-def resnet110f(num_classes, **kwargs):
-    return ResNet(FixupBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
+def resnet110v1f(num_classes, **kwargs):
+    return ResNetV1(FixupBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
 
 
-def resnet110nf(num_classes, **kwargs):
-    return ResNet(NFBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
+def resnet110v1nf(num_classes, **kwargs):
+    return ResNetV1(NFBasicBlock, [18, 18, 18], num_classes, width_factor=1, skip_type='A', **kwargs)
 
 
-def wide_resnet28x10(num_classes, **kwargs):
-    return ResNet(BasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
+def wide_resnet28v1x10(num_classes, **kwargs):
+    return ResNetV1(BasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
 
 
-def wide_resnet28fx10(num_classes, **kwargs):
-    return ResNet(FixupBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
+def wide_resnet28v1fx10(num_classes, **kwargs):
+    return ResNetV1(FixupBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
 
 
-def wide_resnet28nfx10(num_classes, **kwargs):
-    return ResNet(NFBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)
+def wide_resnet28v1nfx10(num_classes, **kwargs):
+    return ResNetV1(NFBasicBlock, [4, 4, 4], num_classes, width_factor=10, skip_type='B', **kwargs)

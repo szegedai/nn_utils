@@ -1,10 +1,14 @@
 import torch
 import torch.nn as nn
 import os
-from .resnet import *
+from .resnet_v1 import ResNetV1, wide_resnet28v1x10, wide_resnet28v1fx10, wide_resnet28v1nfx10, \
+    resnet110v1, resnet110v1f, resnet110v1nf
+from .resnet_v2 import ResNetV2, resnet28v2, wide_resnet28v2x10
 
-__all__ = ['wide_resnet28x10', 'wide_resnet28fx10', 'wide_resnet28nfx10',
-           'resnet110', 'resnet110f', 'resnet110nf', 'ResNet', 'BasicBlock', 'FixupBasicBlock', 'NFBasicBlock']
+__all__ = ['wide_resnet28v1x10', 'wide_resnet28v1fx10', 'wide_resnet28v1nfx10',
+           'resnet110v1', 'resnet110v1f', 'resnet110v1nf', 'ResNetV1',
+           'resnet28v2', 'wide_resnet28v2x10', 'ResNetV2']
+
 
 def save_checkpoint(model, optimizer, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
