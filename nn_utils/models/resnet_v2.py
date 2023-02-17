@@ -151,28 +151,29 @@ class ResNetV2(nn.Module):
 
         negative_slope = 0
         match activation_fn:
-            case nn.ReLU:
+            case nn.ReLU():
                 act = 'relu'
-            case nn.Tanh:
+            case nn.Tanh():
                 act = 'tanh'
-            case nn.LeakyReLU:
+            case nn.LeakyReLU():
                 act = 'leaky_relu'
                 negative_slope = activation_fn.negative_slope
-            case nn.SELU:
+            case nn.SELU():
                 act = 'selu'
-            case nn.Sigmoid:
+            case nn.Sigmoid():
                 act = 'sigmoid'
             case _:
                 act = 'linear'
         for m in self.modules():
-            if m is nn.Conv2d:
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, negative_slope, 'fan_in', act)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0.0)
-            if m is nn.Linear:
-                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='linear')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0.0)
+            if isinstance(m, nn.BatchNorm2d) and m.affine:
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+        nn.init.kaiming_normal_(self.tail[-1].weight, mode='fan_in', nonlinearity='linear')
+        nn.init.constant_(self.tail[-1].bias, 0.0)
 
         self.means = means
         self.stds = stds
