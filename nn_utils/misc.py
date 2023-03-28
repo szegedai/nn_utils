@@ -57,6 +57,7 @@ def top1_accuracy(one_hot=False):
 
 
 def evaluate(model, ds_loader, loss_fn, acc_fn=top1_accuracy(False), attack=None, batch_num_limit=float('inf')):
+    autoattack = isinstance(attack, AutoAttack)
     model_device = next(model.parameters()).device
     model_dtype = next(model.parameters()).dtype
     loss_sum = 0
@@ -70,7 +71,10 @@ def evaluate(model, ds_loader, loss_fn, acc_fn=top1_accuracy(False), attack=None
         x, y = x.to(dtype=model_dtype, device=model_device), y.to(model_device)
 
         if attack is not None:
-            x = attack.perturb(x, y)
+            if autoattack:
+                x = attack.run_standard_evaluation(x, y, bs=current_batch_size)
+            else:
+                x = attack.perturb(x, y)
         with torch.no_grad():
             output = model(x)
 

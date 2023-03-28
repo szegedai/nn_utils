@@ -1,6 +1,6 @@
 import os
-from .resnet_v1 import *
-from .resnet_v2 import *
+from nn_utils.models.resnet_v1 import *
+from nn_utils.models.resnet_v2 import *
 
 
 def save_checkpoint(model, optimizer, path):
