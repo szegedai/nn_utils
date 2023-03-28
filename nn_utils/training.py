@@ -237,7 +237,7 @@ class AdversarialPerturbationCallback(Callback):
         model.train()
 
 
-def train_classifier(model, loss_fn, opt, train_loader, test_loader=None, test_attack=None,
+def train_classifier(model, loss_fn, opt, train_loader, val_loader=None, val_attack=None,
                      regs=None, acc_fn=top1_accuracy(False), callbacks=None, num_epochs=1, initial_epoch=1):
     assert num_epochs >= 1
     assert initial_epoch >= 1
@@ -246,8 +246,8 @@ def train_classifier(model, loss_fn, opt, train_loader, test_loader=None, test_a
     dtype = next(model.parameters()).dtype
     callbacks = callbacks if callbacks is not None else []
     regs = regs if regs is not None else []
-    do_test = test_loader is not None
-    do_adv_test = test_attack is not None
+    do_val = val_loader is not None
+    do_adv_val = val_attack is not None
     cancel_run = False
     num_batches = len(train_loader)
     running_loss = RollingStatistics()
@@ -283,15 +283,15 @@ def train_classifier(model, loss_fn, opt, train_loader, test_loader=None, test_a
             metrics['train_loss'] = running_loss.mean
             metrics['train_acc'] = running_acc.mean
             iter_callbacks('on_batch_end', locals())
-        if do_test:
+        if do_val:
             model.eval()
-            if do_adv_test:
-                test_loss, test_acc = evaluate(model, test_loader, loss_fn, acc_fn, test_attack)
-                metrics['adv_test_loss'] = test_loss
-                metrics['adv_test_acc'] = test_acc
-            test_loss, test_acc = evaluate(model, test_loader, loss_fn, acc_fn)
-            metrics['std_test_loss'] = test_loss
-            metrics['std_test_acc'] = test_acc
+            if do_adv_val:
+                val_loss, val_acc = evaluate(model, val_loader, loss_fn, acc_fn, val_attack)
+                metrics['adv_val_loss'] = val_loss
+                metrics['adv_val_acc'] = val_acc
+            val_loss, val_acc = evaluate(model, val_loader, loss_fn, acc_fn)
+            metrics['std_val_loss'] = val_loss
+            metrics['std_val_acc'] = val_acc
         iter_callbacks('on_epoch_end', locals())
         if cancel_run:
             break
