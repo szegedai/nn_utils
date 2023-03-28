@@ -1,13 +1,6 @@
-import torch
-import torch.nn as nn
 import os
-from .resnet_v1 import ResNetV1, wide_resnet28v1x10, wide_resnet28v1fx10, wide_resnet28v1nfx10, \
-    resnet110v1, resnet110v1f, resnet110v1nf
-from .resnet_v2 import ResNetV2, resnet28v2, wide_resnet28v2x10
-
-__all__ = ['wide_resnet28v1x10', 'wide_resnet28v1fx10', 'wide_resnet28v1nfx10',
-           'resnet110v1', 'resnet110v1f', 'resnet110v1nf', 'ResNetV1',
-           'resnet28v2', 'wide_resnet28v2x10', 'ResNetV2']
+from .resnet_v1 import *
+from .resnet_v2 import *
 
 
 def save_checkpoint(model, optimizer, path):
