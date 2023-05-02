@@ -126,7 +126,7 @@ class CrossEntropyLoss(torch.nn.Module):
         self._cross_entropy_kwargs = kwargs
 
     def _forward_impl_1(self, y_hat, y):
-        return self.reduce(-torch.sum(y * F.log_softmax(y_hat), dim=1))
+        return self.reduce(-torch.sum(y * F.log_softmax(y_hat, dim=1), dim=1))
 
     def _forward_impl_2(self, y_hat, y):
         return F.cross_entropy(y_hat, y, **self._cross_entropy_kwargs)
@@ -402,14 +402,18 @@ class RollingStatistics:
         return self._count
 
 
-def create_data_loaders(datasets, batch_size, shuffle=True, num_workers=4, pin_memory=True):
+def create_data_loaders(datasets, batch_size, shuffle=True,
+                        num_workers=4, pin_memory=True, multiprocessing_context='spawn'):
+    # multiprocessing_context='spawn' is slower than 'fork' but fixes the deadlock during data
+    # loading if the number of workers are more than 0.
     ds_loaders = []
     for ds in datasets:
         ds_loaders.append(DataLoader(ds,
                                      batch_size=batch_size,
                                      shuffle=shuffle,
                                      num_workers=num_workers,
-                                     pin_memory=pin_memory))
+                                     pin_memory=pin_memory,
+                                     multiprocessing_context=multiprocessing_context))
     return ds_loaders
 
 
