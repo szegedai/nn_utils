@@ -403,9 +403,25 @@ class RollingStatistics:
 
 
 def create_data_loaders(datasets, batch_size, shuffle=True,
-                        num_workers=4, pin_memory=True, multiprocessing_context='spawn'):
-    # multiprocessing_context='spawn' is slower than 'fork' but fixes the deadlock during data
-    # loading if the number of workers are more than 0.
+                        num_workers=4, pin_memory=True, multiprocessing_context='spawn', persistent_workers=True):
+    # multiprocessing_context='spawn' creates the subprocesses much slower than 'fork' but fixes the
+    # deadlock during data loading if there are workers (subprocesses).
+    #
+    # persistent_workers=True is recommended to not create new subprocesses in every epoch.
+    # This can make the speed of 'spawn' competitive with 'fork', since only the first epoch will be slower.
+    #
+    # multiprocessing_context='forkserver' is a bit faster than 'spawn' but is not well documented, although
+    # it is claimed to be safe. (Only available on certain Unix based operating systems.)
+    #
+    # More details:
+    #
+    # Spawn creates and initialises a fresh python interpreter on a subprocess and only loads the required
+    # resources. The new interpreter init makes it so slow, but it uses relatively low memory.
+    #
+    # Fork creates a snapshot of the current interpreter and copies it to a new subprocess to run code.
+    # This can create deadlocks if a resource was being used during the copying, since the subprocess
+    # starts with the resource being locked and can not unlock it. Since it does not start a new interpreter,
+    # fork is much faster than spawn, but more bloated because it copies resources that are not needed too.
     ds_loaders = []
     for ds in datasets:
         ds_loaders.append(DataLoader(ds,
@@ -413,7 +429,8 @@ def create_data_loaders(datasets, batch_size, shuffle=True,
                                      shuffle=shuffle,
                                      num_workers=num_workers,
                                      pin_memory=pin_memory,
-                                     multiprocessing_context=multiprocessing_context))
+                                     multiprocessing_context=multiprocessing_context,
+                                     persistent_workers=persistent_workers))
     return ds_loaders
 
 
