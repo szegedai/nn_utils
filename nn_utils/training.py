@@ -238,14 +238,13 @@ class AdversarialPerturbationCallback(Callback):
 
 
 def train_classifier(model, loss_fn, opt, train_loader, val_loader=None, val_attack=None,
-                     regs=None, acc_fn=top1_accuracy(False), callbacks=None, num_epochs=1, initial_epoch=1):
+                     regs=(), acc_fn=top1_accuracy(False), callbacks=(),
+                     num_epochs=1, initial_epoch=1):
     assert num_epochs >= 1
     assert initial_epoch >= 1
     initial_epoch -= 1
     device = next(model.parameters()).device
     dtype = next(model.parameters()).dtype
-    callbacks = callbacks if callbacks is not None else []
-    regs = regs if regs is not None else []
     do_val = val_loader is not None
     do_adv_val = val_attack is not None
     cancel_run = False
@@ -265,7 +264,11 @@ def train_classifier(model, loss_fn, opt, train_loader, val_loader=None, val_att
         running_acc.reset()
         iter_callbacks('on_epoch_begin', locals())
         for batch_idx, (x, y) in enumerate(train_loader):
-            x, y = x.to(dtype=dtype, device=device), y.to(device)
+            try:
+                y = y.to(device)
+                x = x.to(dtype=dtype, device=device)
+            except:
+                pass
 
             iter_callbacks('on_batch_begin', locals())
 

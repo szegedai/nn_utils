@@ -17,6 +17,7 @@ def set_determinism(determinism=True, seed=None):
         np.random.seed(seed)
         random.seed(seed)
     torch.backends.cudnn.deterministic = determinism
+    torch.backends.cudnn.benchmark = not determinism
 
 
 def save_data(data, path):
@@ -66,9 +67,13 @@ def evaluate(model, ds_loader, loss_fn, acc_fn=top1_accuracy(False), attack=None
     for i, (x, y) in enumerate(ds_loader):
         if i >= batch_num_limit:
             break
-        current_batch_size = x.shape[0]
+        current_batch_size = len(x)
         num_samples += current_batch_size
-        x, y = x.to(dtype=model_dtype, device=model_device), y.to(model_device)
+        try:
+            y = y.to(model_device)
+            x = x.to(dtype=model_dtype, device=model_device)
+        except:
+            pass
 
         if attack is not None:
             if autoattack:
@@ -95,9 +100,13 @@ def evaluate_acc(model, ds_loader, acc_fn=top1_accuracy(False), attack=None, bat
     for i, (x, y) in enumerate(ds_loader):
         if i >= batch_num_limit:
             break
-        current_batch_size = x.shape[0]
+        current_batch_size = len(x)
         num_samples += current_batch_size
-        x, y = x.to(dtype=model_dtype, device=model_device), y.to(model_device)
+        try:
+            y = y.to(model_device)
+            x = x.to(dtype=model_dtype, device=model_device)
+        except:
+            pass
 
         if attack is not None:
             if autoattack:
