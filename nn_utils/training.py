@@ -1,7 +1,6 @@
 import torch
 import sys
 import os
-import paramiko
 import wandb
 from time import time
 from torch.utils.data import DataLoader
@@ -85,6 +84,7 @@ class CheckpointCallback(Callback):
             save_checkpoint(model, optimizer, f'{self.checkpoint_dir}/{epoch_idx + 1}')
 
 
+'''
 class RemoteCheckpointCallback(Callback):
     def __init__(self, host, username, password, remote_dir, tmp_dir='.', ever_n_epochs=1, metric_comparator=None):
         self.host = host
@@ -121,6 +121,7 @@ class RemoteCheckpointCallback(Callback):
             with paramiko.SFTPClient.from_transport(self._transport) as sftp:
                 sftp.put(os.path.abspath(f'{self.tmp_dir}/tmp_{epoch_idx + 1}'), f'{self.remote_dir}/{epoch_idx + 1}')
             os.remove(f'{self.tmp_dir}/tmp_{epoch_idx + 1}')
+'''
 
 
 class WandBLoggerCallback(Callback):
