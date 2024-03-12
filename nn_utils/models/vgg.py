@@ -32,20 +32,19 @@ class VGG(torchvision.models.VGG):
     def reset_parameters(self):
         activation_fn = self.classifier[1]
         negative_slope = 0
-        match activation_fn:
-            case nn.ReLU():
-                act = 'relu'
-            case nn.Tanh():
-                act = 'tanh'
-            case nn.LeakyReLU():
-                act = 'leaky_relu'
-                negative_slope = activation_fn.negative_slope
-            case nn.SELU():
-                act = 'selu'
-            case nn.Sigmoid():
-                act = 'sigmoid'
-            case _:
-                act = 'linear'
+        if isinstance(activation_fn, nn.ReLU):
+            act = 'relu'
+        elif isinstance(activation_fn, nn.Tanh):
+            act = 'tanh'
+        elif isinstance(activation_fn, nn.LeakyReLU):
+            act = 'leaky_relu'
+            negative_slope = activation_fn.negative_slope
+        elif isinstance(activation_fn, nn.SELU):
+            act = 'selu'
+        elif isinstance(activation_fn, nn.Sigmoid):
+            act = 'sigmoid'
+        else:
+            act = 'linear'
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight, negative_slope, 'fan_in', act)
