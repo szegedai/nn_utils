@@ -252,20 +252,19 @@ class NFResNetV2(nn.Module):
 
     def reset_parameters(self):
         negative_slope = 0
-        match self.activation_fn:
-            case nn.ReLU():
-                act = 'relu'
-            case nn.Tanh():
-                act = 'tanh'
-            case nn.LeakyReLU():
-                act = 'leaky_relu'
-                negative_slope = self.activation_fn.negative_slope
-            case nn.SELU():
-                act = 'selu'
-            case nn.Sigmoid():
-                act = 'sigmoid'
-            case _:
-                act = 'linear'
+        if isinstance(self.activation_fn, nn.ReLU):
+            act = 'relu'
+        elif isinstance(self.activation_fn, nn.Tanh):
+            act = 'tanh'
+        elif isinstance(self.activation_fn, nn.LeakyReLU):
+            act = 'leaky_relu'
+            negative_slope = self.activation_fn.negative_slope
+        elif isinstance(self.activation_fn, nn.SELU):
+            act = 'selu'
+        elif isinstance(self.activation_fn, nn.Sigmoid):
+            act = 'sigmoid'
+        else:
+            act = 'linear'
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, negative_slope, 'fan_in', act)
